@@ -102,3 +102,4 @@ ENV/
 config.ini
 venv
 .idea
+key.rsa

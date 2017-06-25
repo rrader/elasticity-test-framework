@@ -1,7 +1,7 @@
 from time import sleep
 
-from elastic_test.experiments.base import BaseExperiment
-from elastic_test.experiments.metrics import MetricsSetup
+from elastic_test.setups.base import BaseExperiment
+from elastic_test.setups.metrics import MetricsSetup
 
 
 class SingleDroplet(MetricsSetup, BaseExperiment):

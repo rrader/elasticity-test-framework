@@ -1,4 +1,6 @@
-from elastic_test.experiments.base import BaseExperiment
+from time import sleep
+
+from elastic_test.setups.base import BaseExperiment
 
 
 class MetricsSetup(BaseExperiment):
@@ -20,6 +22,7 @@ class MetricsSetup(BaseExperiment):
 
     def after_experiment(self):
         super().after_experiment()
+        sleep(10)
         for group in self.LAYOUT.get('groups', {}):
             for droplet in self.get_droplet_group(group):
                 with self.ssh_droplet(droplet) as ssh:
@@ -27,6 +30,7 @@ class MetricsSetup(BaseExperiment):
 
     def collect(self):
         super().collect()
+        print('collect: metrics')
         for group in self.LAYOUT.get('groups', {}):
             for droplet in self.get_droplet_group(group):
                 with self.ssh_droplet(droplet) as ssh:

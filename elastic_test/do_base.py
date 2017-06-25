@@ -40,6 +40,7 @@ class DOBase(Base):
         self.token = self.config['do']['token']
         self.manager = digitalocean.Manager(token=self.token)
         self.tag = 'PhD-1'
+        self._base_output_dir = self.get_base_output_dir()
 
     def run(self):
         pass
@@ -121,12 +122,16 @@ class DOBase(Base):
         return key
 
     def output_dir(self, subdirectory=None):
+        output = self._base_output_dir
+        if subdirectory:
+            output = f'{output}/{subdirectory}'
+        os.makedirs(output, exist_ok=True)
+        return output
+
+    def get_base_output_dir(self):
         now = time.time()
         scenario = self.__class__.__name__
         output = f'output/{scenario}-{now}'
-        if subdirectory:
-            output = f'{output}/{subdirectory}'
-        os.makedirs(output)
         return output
 
 

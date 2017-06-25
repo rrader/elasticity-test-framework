@@ -8,7 +8,7 @@ def read_config():
 
 
 def script(name):
-    lines = open(f'scripts/{name}').readlines()
+    lines = open(f'assets/{name}').readlines()
     return lines
 
 

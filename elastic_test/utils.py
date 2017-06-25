@@ -26,3 +26,20 @@ def mkdir_p(sftp, remote, is_dir=False):
         except:
             print("making ... dir",  dir_)
             sftp.mkdir(dir_)
+
+
+def put_dir(sftp, source, target):
+    assert os.path.isdir(source)
+
+    for item in os.listdir(source):
+        put(sftp, os.path.join(source, item), '%s/%s' % (target, item))
+
+
+def put(sftp, local_path, remote_path):
+    if os.path.isfile(local_path):
+        mkdir_p(sftp, remote_path, is_dir=False)
+        print(f' {local_path} to {remote_path}...')
+        sftp.put(local_path, remote_path)
+    else:
+        mkdir_p(sftp, remote_path, is_dir=True)
+        put_dir(sftp, local_path, remote_path)

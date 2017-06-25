@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from io import StringIO
 
@@ -8,7 +9,7 @@ import time
 from digitalocean import SSHKey
 
 from elastic_test.base import Base
-from elastic_test.utils import mkdir_p
+from elastic_test.utils import mkdir_p, put
 
 SSH_KEY_NAME = 'PhDKey'
 
@@ -119,6 +120,15 @@ class DOBase(Base):
         key.create()
         return key
 
+    def output_dir(self, subdirectory=None):
+        now = time.time()
+        scenario = self.__class__.__name__
+        output = f'output/{scenario}-{now}'
+        if subdirectory:
+            output = f'{output}/{subdirectory}'
+        os.makedirs(output)
+        return output
+
 
 class LayoutedBase(DOBase):
     LAYOUT = {}
@@ -131,17 +141,20 @@ class LayoutedBase(DOBase):
             group_droplets = self.get_or_create_droplet_group(name, config.get('number', 1))
             droplets.extend(group_droplets)
 
-            for droplet in group_droplets:
+        wait_until_done(droplets)
+
+        for name, config in groups.items():
+            droplets = self.get_droplet_group(name)
+
+            for droplet in droplets:
                 with self.ssh_droplet(droplet) as ssh:
                     sftp = ssh.open_sftp()
 
                     for asset in config.get('assets', []):
                         remote_path = f'/opt/test/assets/{asset}'
                         print(f'Putting asset {asset} to {remote_path}')
-                        mkdir_p(sftp, remote_path, is_dir=False)
-                        sftp.put(asset, remote_path)
+                        put(sftp, f'assets/{asset}', remote_path)
 
-        wait_until_done(droplets)
         print('Layout created')
 
 

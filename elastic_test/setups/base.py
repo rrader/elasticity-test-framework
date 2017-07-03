@@ -17,13 +17,13 @@ class BaseExperiment(LayoutedBase):
         pass
 
     def before_experiment(self):
-        pass
+        self.asset_script_for_all('before_experiment.sh')
 
     def experiment(self):
         pass
 
     def after_experiment(self):
-        pass
+        self.asset_script_for_all('after_experiment.sh')
 
     def collect(self):
         pass

@@ -2,10 +2,9 @@ from time import sleep
 
 from elastic_test.setups.base import BaseExperiment
 from elastic_test.setups.metrics import MetricsSetup
-from elastic_test.setups.redis import RedisSetup
 
 
-class RedisBenchmark(MetricsSetup, RedisSetup, BaseExperiment):
+class RedisBenchmark(MetricsSetup, BaseExperiment):
     LAYOUT = {
         'groups': {
             'Redis': {

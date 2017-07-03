@@ -5,6 +5,10 @@ from elastic_test.setups.metrics import MetricsSetup
 
 
 class SingleDroplet(MetricsSetup, BaseExperiment):
+    """
+    Experiment starts a single machine with metrics module setup,
+    and measures the metrics for 30 seconds
+    """
     LAYOUT = {
         'groups': {
             'Target': {

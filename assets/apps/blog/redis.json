@@ -1,0 +1,5 @@
+{
+  "STORAGE": "redis",
+  "REDIS_MASTER": "redis://127.0.0.1:6379/0",
+  "REDISES": "redis://127.0.0.1:6379/0"
+}

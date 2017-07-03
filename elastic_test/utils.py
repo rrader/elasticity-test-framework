@@ -30,8 +30,14 @@ def mkdir_p(sftp, remote, is_dir=False):
 
 def put_dir(sftp, source, target):
     assert os.path.isdir(source)
+    ignore = []
+    if os.path.exists(f'{source}/.ignore'):
+        ignore = open(f'{source}/.ignore').readlines()
 
     for item in os.listdir(source):
+        if item in ignore:
+            print(f' ignoring {source}/{item}')
+            continue
         put(sftp, os.path.join(source, item), '%s/%s' % (target, item))
 
 

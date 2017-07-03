@@ -1,5 +1,5 @@
 import os
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from io import StringIO
 
 import digitalocean
@@ -26,12 +26,16 @@ def wait_until_done(droplets):
         return
 
     print('waiting...')
+    n = 0
     for droplet in droplets:
         actions = droplet.get_actions()
         for action in actions:
             action.load()
-            action.wait()
-    time.sleep(30)
+            if action.status != 'completed':
+                action.wait()
+                n += 1
+    if n:
+        time.sleep(30)
 
 
 class DOBase(Base):
@@ -45,7 +49,7 @@ class DOBase(Base):
     def run(self):
         pass
 
-    def create_droplet(self, tag=None):
+    def create_droplet(self, tag=None, size='512mb'):
         keys = [self.do_ssh_key()]
         tags = [self.tag]
         if tag:
@@ -56,7 +60,7 @@ class DOBase(Base):
             name=random_name(self.tag),
             region='ams2',
             image='ubuntu-14-04-x64',
-            size_slug='512mb',
+            size_slug=size,
             backups=False,
             ssh_keys=keys,
             tags=tags
@@ -65,7 +69,7 @@ class DOBase(Base):
         droplet.create()
         return droplet
 
-    def get_or_create_droplet_group(self, tag=None, number=1):
+    def get_or_create_droplet_group(self, tag=None, number=1, size='512mb'):
         print('Initialize group "{}" of {} nodes'.format(tag, number))
 
         droplets = self.get_droplet_group(tag)
@@ -73,7 +77,7 @@ class DOBase(Base):
         to_create = number - len(droplets)
         for i in range(to_create):
             droplets.append(
-                self.create_droplet(tag)
+                self.create_droplet(tag, size)
             )
 
         return droplets
@@ -83,7 +87,7 @@ class DOBase(Base):
         if tag:
             droplets = [d for d in droplets if tag in d.tags]
         for droplet in droplets:
-            print('use droplet {}'.format(droplet.name))
+            print('use droplet {} {}'.format(droplet.name, droplet.ip_address))
         return droplets
 
     def destroy_all(self):
@@ -106,6 +110,16 @@ class DOBase(Base):
 
     def ssh_droplet(self, droplet):
         return self.ssh(hostname=droplet.ip_address, username='root')
+
+    @contextmanager
+    def ssh_droplet_group(self, group):
+        with ExitStack() as stack:
+            sshs = []
+            for droplet in self.get_droplet_group(group):
+                sshs.append(
+                    stack.enter_context(self.ssh_droplet(droplet))
+                )
+            yield sshs
 
     def do_ssh_key(self):
         all_key = self.manager.get_all_sshkeys()
@@ -143,7 +157,9 @@ class LayoutedBase(DOBase):
 
         droplets = []
         for name, config in groups.items():
-            group_droplets = self.get_or_create_droplet_group(name, config.get('number', 1))
+            group_droplets = self.get_or_create_droplet_group(
+                name, config.get('number', 1), config.get('size', '512mb')
+            )
             droplets.extend(group_droplets)
 
         wait_until_done(droplets)
@@ -160,7 +176,27 @@ class LayoutedBase(DOBase):
                         print(f'Putting asset {asset} to {remote_path}')
                         put(sftp, f'assets/{asset}', remote_path)
 
+        self.asset_script_for_all('setup.sh')
         print('Layout created')
+
+    def asset_script(self, ssh, asset, script):
+        remote_path = f'/opt/test/assets/{asset}'
+        print(f'  run {script} on asset {asset}')
+        stdin, stdout, stderr = ssh.exec_command(
+            f'cd {remote_path}; [ -f {script} ] && bash {script}; cd -'
+        )
+        print(stdout.read().decode(), stderr.read().decode())
+
+    def asset_script_for_all(self, script):
+        print(f'Asset script: {script}')
+        groups = self.LAYOUT.get('groups', {})
+        for name, config in groups.items():
+            droplets = self.get_droplet_group(name)
+
+            for droplet in droplets:
+                with self.ssh_droplet(droplet) as ssh:
+                    for asset in config.get('assets', []):
+                        self.asset_script(ssh, asset, script)
 
 
 if __name__ == "__main__":

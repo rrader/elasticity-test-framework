@@ -1,0 +1,32 @@
+containers:
+  base:
+    setup:
+    - !Ubuntu trusty
+    - !Install [curl, git, strace]
+    - !Py3Install [setuptools, wheel, packaging]
+    - !PipConfig { dependencies: true }
+    - !Py3Requirements "requirements.txt"
+
+  redis:
+    setup:
+    - !Alpine v3.4
+    - !Install [redis]
+
+commands:
+  run: !Command
+    description: "App: Run application server"
+    container: base
+    run: |
+      flask run
+    environ:
+      DEBUG: yes
+      FLASK_APP: blog.py
+      LANG: C.UTF-8
+      REDIS: 1
+
+  redis: &redis !Command
+    description: "App: Run redis server"
+    container: redis
+    tags: [db]
+    run: |
+      redis-server --daemonize no --databases 32

@@ -1,0 +1,1 @@
+cat output/RedisBenchmark-1498662935.0162852/Redis/PhD-1-Maryann-Nance/metrics.sh.log | grep cpu | awk '{print $2}' | gnuplot -p -e 'plot "/dev/stdin"'

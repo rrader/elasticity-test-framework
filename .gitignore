@@ -103,3 +103,5 @@ config.ini
 venv
 .idea
 key.rsa
+output/
+.vagga

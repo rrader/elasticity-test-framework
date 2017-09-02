@@ -3,6 +3,7 @@ from random import choice
 
 import redis
 from flask import Flask, request
+from pidigits import getPi
 
 
 # Lib
@@ -111,6 +112,7 @@ else:
 
 @app.route("/", methods=['GET'])
 def records():
+    getPi(100)
     return BASE.format(
         content=''.join(ARTICLE.format(**a) for a in storage.get_articles())
     )

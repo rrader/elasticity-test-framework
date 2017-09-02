@@ -18,7 +18,7 @@ class BlogInMemory(MetricsSetup, BaseExperiment):
                 'size': '512mb'
             },
             'Source': {
-                'number': 2,
+                'number': 1,
                 'assets': ['metrics', 'apps/httperf'],
                 'size': '512mb'
             },
@@ -33,9 +33,9 @@ class BlogInMemory(MetricsSetup, BaseExperiment):
         target = self.get_droplet_group('Target')[0].ip_address
 
         with self.ssh_droplet_group('Source') as sshs:
-            max_rate = 1000
+            max_rate = 500
             rate = 200
-            dur = 30
+            dur = 15
 
             while rate < max_rate:
                 conns = rate * dur

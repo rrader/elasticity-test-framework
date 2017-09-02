@@ -1,4 +1,3 @@
-import datetime
 import numpy as np
 
 from elastic_test.setups.base import BaseExperiment

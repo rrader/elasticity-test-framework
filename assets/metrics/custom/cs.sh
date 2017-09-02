@@ -1,7 +1,7 @@
 #!/bin/sh
 
 start () {
-    readonly divisor=$(($INTERVAL * 1024))
+    readonly divisor=$(($INTERVAL))
 
     get_nonvol_cs () {
         grep "^nonvoluntary_ctxt_switches:" /proc/*/status | awk '{ print $2 }' | jq -s 'add'

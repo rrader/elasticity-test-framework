@@ -1,4 +1,4 @@
-from elastic_test.do_base import LayoutedBase
+from elasticity_analyzer.do_base import LayoutedBase
 
 
 class BaseExperiment(LayoutedBase):

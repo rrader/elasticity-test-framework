@@ -1,10 +1,10 @@
 from time import sleep
 
-from elastic_test.setups.base import BaseExperiment
-from elastic_test.setups.metrics import MetricsSetup
+from elasticity_analyzer.extensions.metrics import collect_metrics
+from elasticity_analyzer.setups.base import BaseExperiment
 
 
-class RedisBenchmark(MetricsSetup, BaseExperiment):
+class RedisBenchmark(BaseExperiment):
     LAYOUT = {
         'groups': {
             'Redis': {
@@ -30,6 +30,9 @@ class RedisBenchmark(MetricsSetup, BaseExperiment):
 
     def collect(self):
         super().collect()
+
+        collect_metrics(self)
+
         for group in self.LAYOUT.get('groups', {}):
             for droplet in self.get_droplet_group(group):
                 with self.ssh_droplet(droplet) as ssh:

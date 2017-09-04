@@ -1,6 +1,5 @@
 import numpy as np
 
-from elastic_test.setups.base import BaseExperiment
 import matplotlib.pyplot as plt
 
 
@@ -14,14 +13,13 @@ def plot_metric(log, metric, output, ymax=None):
     plt.close()
 
 
-class MetricsSetup(BaseExperiment):
-    def collect(self):
-        super().collect()
-        print('collect: metrics')
-        for group in self.LAYOUT.get('groups', {}):
-            for droplet in self.get_droplet_group(group):
-                with self.ssh_droplet(droplet) as ssh:
-                    output = self.output_dir(f'{group}/{droplet.name}')
+def collect_metrics(app):
+    print('collect: metrics')
+    for group, config in app.LAYOUT.get('groups', {}).items():
+        for droplet in app.get_droplet_group(group):
+            if 'metrics' in config.get('assets', []):
+                with app.ssh_droplet(droplet) as ssh:
+                    output = app.output_dir(f'{group}/{droplet.name}')
                     sftp = ssh.open_sftp()
                     sftp.get('/var/log/metrics.sh.log', f'{output}/metrics.sh.log')
                     plot_metric(f'{output}/metrics.sh.log', 'cpu:', f'{output}/metrics.sh.cpu.png', 100)

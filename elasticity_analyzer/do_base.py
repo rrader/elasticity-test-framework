@@ -8,8 +8,8 @@ import paramiko
 import time
 from digitalocean import SSHKey
 
-from elastic_test.base import Base
-from elastic_test.utils import mkdir_p, put
+from elasticity_analyzer.base import Base
+from elasticity_analyzer.utils import mkdir_p, put
 
 SSH_KEY_NAME = 'PhDKey'
 
@@ -197,6 +197,14 @@ class LayoutedBase(DOBase):
                 with self.ssh_droplet(droplet) as ssh:
                     for asset in config.get('assets', []):
                         self.asset_script(ssh, asset, script)
+
+    def droplets_with_asset(self, asset):
+        groups = self.LAYOUT.get('groups', {})
+        for name, config in groups.items():
+            droplets = self.get_droplet_group(name)
+
+            if asset in config.get('assets', []):
+                yield from droplets
 
 
 if __name__ == "__main__":

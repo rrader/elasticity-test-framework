@@ -112,7 +112,7 @@ else:
 
 @app.route("/", methods=['GET'])
 def records():
-    getPi(100)
+    getPi(500)  # ~10ms
     return BASE.format(
         content=''.join(ARTICLE.format(**a) for a in storage.get_articles())
     )

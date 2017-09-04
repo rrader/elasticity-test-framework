@@ -1,4 +1,4 @@
-from elastic_test.do_base import DOBase, wait_until_done
+from elasticity_analyzer.do_base import DOBase, wait_until_done
 
 
 class DestroyCluster(DOBase):

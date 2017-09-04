@@ -1,10 +1,10 @@
 from time import sleep
 
-from elastic_test.setups.base import BaseExperiment
-from elastic_test.setups.metrics import MetricsSetup
+from elasticity_analyzer.extensions.metrics import collect_metrics
+from elasticity_analyzer.setups.base import BaseExperiment
 
 
-class SingleDroplet(MetricsSetup, BaseExperiment):
+class SingleDroplet(BaseExperiment):
     """
     Experiment starts a single machine with metrics module setup,
     and measures the metrics for 30 seconds
@@ -29,6 +29,7 @@ class SingleDroplet(MetricsSetup, BaseExperiment):
 
     def collect(self):
         super().collect()
+        collect_metrics(self)
 
     def setup(self):
         super().setup()

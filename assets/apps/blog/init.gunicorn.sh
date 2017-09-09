@@ -17,7 +17,7 @@ WORK_DIR=/opt/test/assets/apps/blog
 
 PIDFILE=/var/run/$NAME.pid
 LOGFILE=/var/log/$NAME.log
-ARGS="--pid ${PIDFILE} --bind 0.0.0.0:5000 -w 8 blog:app"
+ARGS="--pid ${PIDFILE} --bind 0.0.0.0:5000 -w 16 blog:app"
 
 # Exit if the package is not installed
 [ -x "$SCRIPT" ] || exit 0

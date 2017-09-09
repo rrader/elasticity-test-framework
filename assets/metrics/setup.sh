@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -x
 
-apt-get update --fix-missing
-apt-get install -y git jq
-
 mkdir -p /opt; cd /opt
 [ -d metrics.sh ] || git clone https://github.com/pstadler/metrics.sh.git
 cd metrics.sh
@@ -15,4 +12,3 @@ cp -f /opt/test/assets/metrics/custom/*.sh /opt/metrics.sh/metrics/custom/
 
 
 update-rc.d metrics.sh defaults
-

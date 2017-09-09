@@ -37,7 +37,6 @@ class BlogInMemory(BaseExperiment):
         self.files = []
 
     def experiment(self):
-        target = self.get_droplet_group('Target')[0].ip_address
         timeout = self.TIMEOUT
 
         with self.ssh_droplet_group('Source') as sshs:
@@ -49,7 +48,7 @@ class BlogInMemory(BaseExperiment):
             while rate < max_rate:
                 conns = rate * dur
                 cmd = (
-                    f'httperf --hog --server={target} --port {port} --num-conns {conns} --rate={rate} '
+                    f'httperf --hog --server=0.target --port {port} --num-conns {conns} --rate={rate} '
                     f'--timeout={timeout} > /tmp/httperf-{rate}.log'
                 )
                 self.files.append((f'/tmp/httperf-{rate}.log', f'httperf-{rate}.log'))

@@ -1,54 +1,66 @@
 from time import sleep
 
+from elasticity_analyzer.extensions.httperf import plot_httperf
 from elasticity_analyzer.extensions.metrics import collect_metrics
 from elasticity_analyzer.setups.base import BaseExperiment
 
 
-class BlogInMemory(BaseExperiment):
+class BlogBalancer(BaseExperiment):
     """
     Experiment starts multiple machines with load balancer,
     runs the load test,
     and measures the metrics for 30 seconds
     """
+    DEFAULT_ASSETS = ['general', 'hosts', 'metrics']
     LAYOUT = {
         'groups': {
             'Target': {
-                'number': 1,
-                'assets': ['metrics', 'apps/blog'],
+                'number': 2,
+                'assets': ['metrics/agent', 'apps/blog'],
                 'size': '512mb'
             },
             'LoadBalancer': {
                 'number': 1,
-                'assets': ['metrics', 'apps/blog'],
+                'assets': ['haproxy'],
                 'size': '512mb'
             },
             'Source': {
                 'number': 1,
-                'assets': ['metrics', 'apps/httperf'],
+                'assets': ['apps/httperf'],
                 'size': '512mb'
             },
         }
     }
 
+    TIMEOUT = 1  # seconds
+    START_RATE = 10
+    MAX_RATE = 150
+    STEP_DURATION = 15
+    STEP_RATE = 10
+    PORT = 80
+
     def __init__(self):
         super().__init__()
-        self.files = []
+        self.httperf_files = []
 
     def experiment(self):
-        target = self.get_droplet_group('Target')[0].ip_address
+        sleep(10)
+
+        timeout = self.TIMEOUT
 
         with self.ssh_droplet_group('Source') as sshs:
-            max_rate = 500
-            rate = 200
-            dur = 15
+            max_rate = self.MAX_RATE
+            rate = self.START_RATE
+            dur = self.STEP_DURATION
+            port = self.PORT
 
             while rate < max_rate:
                 conns = rate * dur
                 cmd = (
-                    f'httperf --hog --server={target} --port 5000 --num-conns {conns} --rate={rate} --timeout=1 '
-                    f'> /tmp/httperf-{rate}.log'
+                    f'httperf --hog --server=0.loadbalancer --port {port} --num-conns {conns} --rate={rate} '
+                    f'--timeout={timeout} > /tmp/httperf-{rate}.log'
                 )
-                self.files.append((f'/tmp/httperf-{rate}.log', f'httperf-{rate}.log'))
+                self.httperf_files.append((f'/tmp/httperf-{rate}.log', f'httperf-{rate}.log'))
                 print(cmd)
 
                 chans = [
@@ -62,7 +74,8 @@ class BlogInMemory(BaseExperiment):
                 while not all(chan.exit_status_ready() for chan in chans):
                     sleep(1)
 
-                rate = int(rate + 10)
+                rate = int(rate + self.STEP_RATE)
+                sleep(5)
 
     def before_experiment(self):
         super().before_experiment()
@@ -74,16 +87,21 @@ class BlogInMemory(BaseExperiment):
         super().collect()
         collect_metrics(self)
 
+        print('=> Download httperf log files')
+        log_files = []
         for droplet in self.get_droplet_group('Source'):
             with self.ssh_droplet(droplet) as ssh:
                 output = self.output_dir(f'Source/{droplet.name}')
                 sftp = ssh.open_sftp()
-                for remote_file, name in self.files:
+                for remote_file, name in self.httperf_files:
                     sftp.get(remote_file, f'{output}/{name}')
+                    log_files.append(f'{output}/{name}')
+
+            plot_httperf(self, log_files, output)
 
     def setup(self):
         super().setup()
 
 
 if __name__ == "__main__":
-    BlogInMemory().run()
+    BlogBalancer().run()

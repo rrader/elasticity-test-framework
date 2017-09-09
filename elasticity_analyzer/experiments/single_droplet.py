@@ -9,11 +9,12 @@ class SingleDroplet(BaseExperiment):
     Experiment starts a single machine with metrics module setup,
     and measures the metrics for 30 seconds
     """
+    DEFAULT_ASSETS = ['hosts', 'metrics']
     LAYOUT = {
         'groups': {
             'Target': {
                 'number': 1,
-                'assets': ['metrics']
+                'assets': ['metrics/agent']
             },
         }
     }

@@ -1,3 +1,4 @@
+import json
 import os
 from contextlib import contextmanager, ExitStack
 from io import StringIO
@@ -49,15 +50,18 @@ class DOBase(Base):
     def run(self):
         pass
 
-    def create_droplet(self, tag=None, size='512mb'):
+    def create_droplet(self, tag=None, size='512mb', name=None):
         keys = [self.do_ssh_key()]
         tags = [self.tag]
         if tag:
             tags.append(tag)
 
+        if name is None:
+            name = random_name(self.tag)
+
         droplet = digitalocean.Droplet(
             token=self.token,
-            name=random_name(self.tag),
+            name=name,
             region='ams2',
             image='ubuntu-14-04-x64',
             size_slug=size,
@@ -72,12 +76,16 @@ class DOBase(Base):
     def get_or_create_droplet_group(self, tag=None, number=1, size='512mb'):
         print('Initialize group "{}" of {} nodes'.format(tag, number))
 
+        if tag is None:
+            tag = 'X'
+
         droplets = self.get_droplet_group(tag)
 
         to_create = number - len(droplets)
-        for i in range(to_create):
+        for n, i in enumerate(range(to_create), start=len(droplets)):
+            name = '{}-{}.{}'.format(self.tag, n, tag.lower())
             droplets.append(
-                self.create_droplet(tag, size)
+                self.create_droplet(tag, size, name)
             )
 
         return droplets
@@ -109,7 +117,7 @@ class DOBase(Base):
         return ssh
 
     def ssh_droplet(self, droplet):
-        return self.ssh(hostname=droplet.ip_address, username='root')
+        return self.ssh(hostname=droplet.ip_address, username='root', compress=True)
 
     @contextmanager
     def ssh_droplet_group(self, group):
@@ -151,19 +159,27 @@ class DOBase(Base):
 
 class LayoutedBase(DOBase):
     LAYOUT = {}
+    DEFAULT_ASSETS = []
 
     def run(self):
         groups = self.LAYOUT.get('groups', {})
 
+        print('=> Create layout')
         droplets = []
         for name, config in groups.items():
             group_droplets = self.get_or_create_droplet_group(
                 name, config.get('number', 1), config.get('size', '512mb')
             )
             droplets.extend(group_droplets)
+            self.LAYOUT['groups'][name]['ips'] = [droplet.ip_address for droplet in group_droplets]
 
         wait_until_done(droplets)
 
+        for name, config in groups.items():
+            droplets = self.get_droplet_group(name)
+            self.LAYOUT['groups'][name]['ips'] = [droplet.ip_address for droplet in droplets]
+
+        print('=> Populate assets')
         for name, config in groups.items():
             droplets = self.get_droplet_group(name)
 
@@ -171,13 +187,18 @@ class LayoutedBase(DOBase):
                 with self.ssh_droplet(droplet) as ssh:
                     sftp = ssh.open_sftp()
 
-                    for asset in config.get('assets', []):
+                    assets = self.DEFAULT_ASSETS + config.get('assets', [])
+                    self.LAYOUT['groups'][name]['assets'] = list(assets)
+                    for asset in assets:
                         remote_path = f'/opt/test/assets/{asset}'
                         print(f'Putting asset {asset} to {remote_path}')
                         put(sftp, f'assets/{asset}', remote_path)
 
+        layout_txt = json.dumps(self.LAYOUT)
+        self.cmd_for_all(f'cat > /opt/layout.json << EOF\n{layout_txt}\nEOF')
+
         self.asset_script_for_all('setup.sh')
-        print('Layout created')
+        print('=> Layout created')
 
     def asset_script(self, ssh, asset, script):
         remote_path = f'/opt/test/assets/{asset}'
@@ -197,6 +218,17 @@ class LayoutedBase(DOBase):
                 with self.ssh_droplet(droplet) as ssh:
                     for asset in config.get('assets', []):
                         self.asset_script(ssh, asset, script)
+
+    def cmd_for_all(self, cmd):
+        print(f'Command: {cmd}')
+        groups = self.LAYOUT.get('groups', {})
+        for name, config in groups.items():
+            droplets = self.get_droplet_group(name)
+
+            for droplet in droplets:
+                with self.ssh_droplet(droplet) as ssh:
+                    stdin, stdout, stderr = ssh.exec_command(cmd)
+                    print(stdout.read().decode(), stderr.read().decode())
 
     def droplets_with_asset(self, asset):
         groups = self.LAYOUT.get('groups', {})

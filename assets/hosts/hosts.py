@@ -10,8 +10,8 @@ def main():
 
     layout = json.load(open(LAYOUT_JSON))
     for name, config in layout.get('groups', {}).items():
-        for i, ip in enumerate(config.get('ips', [])):
-            host = '{}.{}'.format(i, name).lower()
+        for host, ip in config.get('ips', {}).items():
+            host = host.lower()
 
             hosts.remove_all_matching(name=host)
 

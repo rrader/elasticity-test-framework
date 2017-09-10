@@ -44,7 +44,7 @@ class DOBase(Base):
         super().__init__()
         self.token = self.config['do']['token']
         self.manager = digitalocean.Manager(token=self.token)
-        self.tag = 'PhD-1'
+        self.tag = 'PhD'
         self._base_output_dir = self.get_base_output_dir()
 
     def run(self):
@@ -83,7 +83,7 @@ class DOBase(Base):
 
         to_create = number - len(droplets)
         for n, i in enumerate(range(to_create), start=len(droplets)):
-            name = '{}-{}.{}'.format(self.tag, n, tag.lower())
+            name = '{}.{}'.format(n, tag.lower())
             droplets.append(
                 self.create_droplet(tag, size, name)
             )
@@ -93,7 +93,7 @@ class DOBase(Base):
     def get_droplet_group(self, tag=None):
         droplets = self.manager.get_all_droplets(tag_name=self.tag)
         if tag:
-            droplets = [d for d in droplets if tag in d.tags]
+            droplets = sorted([d for d in droplets if tag in d.tags], key=lambda d: d.name)
         for droplet in droplets:
             print('use droplet {} {}'.format(droplet.name, droplet.ip_address))
         return droplets
@@ -177,7 +177,7 @@ class LayoutedBase(DOBase):
 
         for name, config in groups.items():
             droplets = self.get_droplet_group(name)
-            self.LAYOUT['groups'][name]['ips'] = [droplet.ip_address for droplet in droplets]
+            self.LAYOUT['groups'][name]['ips'] = {droplet.name: droplet.ip_address for droplet in droplets}
 
         print('=> Populate assets')
         for name, config in groups.items():
@@ -185,6 +185,8 @@ class LayoutedBase(DOBase):
 
             for droplet in droplets:
                 with self.ssh_droplet(droplet) as ssh:
+                    ssh.exec_command('echo "{}" > /etc/hostname'.format(droplet.name))
+                    ssh.exec_command('hostname {}'.format(droplet.name))
                     sftp = ssh.open_sftp()
 
                     assets = self.DEFAULT_ASSETS + config.get('assets', [])
@@ -237,6 +239,9 @@ class LayoutedBase(DOBase):
 
             if asset in config.get('assets', []):
                 yield from droplets
+
+    def setup(self):
+        super().setup()
 
 
 if __name__ == "__main__":

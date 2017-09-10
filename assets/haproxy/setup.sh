@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# TODO: Copy config files
 apt-get install -y haproxy
 
 sed -i.bak 's/^ENABLED=0$/ENABLED=1/g' /etc/default/haproxy

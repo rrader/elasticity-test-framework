@@ -105,3 +105,4 @@ venv
 key.rsa
 output/
 .vagga
+metrics.db

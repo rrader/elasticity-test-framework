@@ -15,13 +15,18 @@ class BlogBalancer(BaseExperiment):
     LAYOUT = {
         'groups': {
             'Target': {
-                'number': 2,
-                'assets': ['metrics/agent', 'apps/blog'],
+                'number': 3,
+                'assets': ['metrics/agent', 'apps/blog', 'apps/blog-nginx'],
                 'size': '512mb'
             },
             'LoadBalancer': {
                 'number': 1,
                 'assets': ['haproxy'],
+                'size': '512mb'
+            },
+            'Controller': {
+                'number': 1,
+                'assets': ['apps/controller'],
                 'size': '512mb'
             },
             'Source': {
@@ -33,8 +38,8 @@ class BlogBalancer(BaseExperiment):
     }
 
     TIMEOUT = 1  # seconds
-    START_RATE = 10
-    MAX_RATE = 150
+    START_RATE = 5
+    MAX_RATE = 50
     STEP_DURATION = 15
     STEP_RATE = 10
     PORT = 80
@@ -76,6 +81,7 @@ class BlogBalancer(BaseExperiment):
 
                 rate = int(rate + self.STEP_RATE)
                 sleep(5)
+        sleep(30)
 
     def before_experiment(self):
         super().before_experiment()
@@ -101,6 +107,13 @@ class BlogBalancer(BaseExperiment):
 
     def setup(self):
         super().setup()
+
+    # def run(self):  # comment out for full experiment run
+    #     self.before_experiment()
+    #     self.experiment()
+    #     self.after_experiment()
+    #
+    #     self.collect()
 
 
 if __name__ == "__main__":

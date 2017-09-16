@@ -38,9 +38,9 @@ class BlogBalancer(BaseExperiment):
     }
 
     TIMEOUT = 1  # seconds
-    START_RATE = 5
-    MAX_RATE = 50
-    STEP_DURATION = 15
+    START_RATE = 10
+    MAX_RATE = 100
+    STEP_DURATION = 60
     STEP_RATE = 10
     PORT = 80
 

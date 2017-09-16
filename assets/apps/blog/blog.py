@@ -112,7 +112,7 @@ else:
 
 @app.route("/", methods=['GET'])
 def records():
-    getPi(500)  # ~100ms on DO droplet
+    getPi(600)  # ~100ms on DO droplet
     return BASE.format(
         content=''.join(ARTICLE.format(**a) for a in storage.get_articles())
     )

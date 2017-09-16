@@ -2,6 +2,7 @@ import time
 
 import sys
 
+from scaling_controller.algs.constant import constant
 from scaling_controller.algs.cpu_threshold import cpu_threshold
 from scaling_controller.algs.time_based import time_based
 from scaling_controller.utils import Env

@@ -241,7 +241,7 @@ class LayoutedBase(DOBase):
                 yield from droplets
 
     def setup(self):
-        super().setup()
+        pass
 
 
 if __name__ == "__main__":

@@ -1,0 +1,7 @@
+@startuml
+(*) --> "Monitoring"
+--> "Analysis"
+--> "Planning"
+--> "Execution"
+--> "Monitoring"
+@enduml

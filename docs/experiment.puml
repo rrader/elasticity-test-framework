@@ -1,0 +1,22 @@
+@startuml
+start
+partition Prepare {
+: Create Virtual Machines groups;
+: Populate assets to each machine;
+: Configure communication;
+}
+
+partition "Before experiment" {
+: Custom setup for the specific experiment;
+: Start up of all services;
+}
+
+: Run the experiment code;
+
+partition "After experiment" {
+: Shut down all services;
+: Download artifacts;
+: Aggregate statistics data, plot diagrams,\n generate reports;
+}
+end
+@enduml

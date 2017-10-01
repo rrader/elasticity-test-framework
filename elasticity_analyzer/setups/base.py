@@ -14,7 +14,7 @@ class BaseExperiment(LayoutedBase):
         self.collect()
 
     def setup(self):
-        super()
+        super().setup()
 
     def before_experiment(self):
         self.asset_script_for_all('before_experiment.sh')

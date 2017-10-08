@@ -1,31 +1,43 @@
 from statistics import mean
+from time import sleep
+
+from scaling_controller.utils import MovingAverage
+
+COOLDOWN_SECONDS = 30
+CPU_THRESHOLD = 90
 
 
 def cpu_threshold(env):
-    cpu = [instance['cpu'] for instance in env.last_metrics()]
-    print(cpu)
-    if None in cpu:
-        print('No data yet')
-        return
-    avg = mean(cpu)
-    print('avg cpu:', avg)
+    cpu_avg = MovingAverage(window_size=10)
+    last_scaled = None
+    while True:
+        # gather metrics
+        cpu = get_target_cpu_avg(env)
+        if cpu is None:
+            yield 'No data yet'
+        cpu_avg.put(cpu)
 
-    env.vars.setdefault('avg_window', [])
-    env.vars.get('avg_window').append(avg)
-    if len(env.vars.get('avg_window')) > 10:
-        del env.vars.get('avg_window')[0]
+        # Cool down
+        if last_scaled is not None:
+            if env.time() - last_scaled < COOLDOWN_SECONDS:
+                yield 'waiting for 30 sec'
 
-    if env.vars.get('last_scaled'):
-        if env.time() - env.vars.get('last_scaled') < 30:
-            print('waiting for 30 sec')
-            return
+        # Scale if needed
+        if cpu_avg.get():
+            print('avg 10s window:', cpu_avg.get())
 
-    if len(env.vars.get('avg_window')) == 10:
-        avg_window = mean(env.vars.get('avg_window'))
-        print('avg 10s window:', avg_window)
-        if avg_window >= 90:
-            if env.instances + 1 > env.max_instances:
-                print('Overload! Maximum instance number exceeded!')
-                return
-            env.set_instance_number(env.instances + 1)
-            env.vars['last_scaled'] = env.time()
+            if cpu_avg.get() >= CPU_THRESHOLD:
+
+                if env.instances + 1 > env.max_instances:
+                    yield 'Overload! Maximum instance number exceeded!'
+
+                env.set_instance_number(env.instances + 1)
+                last_scaled = env.time()
+
+        sleep(1)
+
+
+def get_target_cpu_avg(env):
+    cpu = [instance['cpu'] for instance in env.last_metrics('target')]
+    if cpu and None not in cpu:
+        return mean(cpu)

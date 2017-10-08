@@ -44,4 +44,4 @@ class BlogInMemoryWithNginx(BlogInMemory):
 
 
 if __name__ == "__main__":
-    BlogInMemoryWithNginx().run()
+    BlogInMemoryWithNginx().start()

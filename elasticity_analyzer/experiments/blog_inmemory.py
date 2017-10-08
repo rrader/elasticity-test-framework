@@ -94,4 +94,4 @@ class BlogInMemory(BaseExperiment):
 
 
 if __name__ == "__main__":
-    BlogInMemory().run()
+    BlogInMemory().start()

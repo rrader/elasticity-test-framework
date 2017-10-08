@@ -1,8 +1,8 @@
 @startuml
 start
-partition Prepare {
+partition "Build cluster" {
 : Create Virtual Machines groups;
-: Populate assets to each machine;
+: Populate assets to each machine,\nsetup applications;
 : Configure communication;
 }
 

@@ -106,3 +106,4 @@ key.rsa
 output/
 .vagga
 metrics.db
+assets.tgz

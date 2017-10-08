@@ -37,4 +37,4 @@ class SingleDroplet(BaseExperiment):
 
 
 if __name__ == "__main__":
-    SingleDroplet().run()
+    SingleDroplet().start()

@@ -11,4 +11,4 @@ class DestroyCluster(DOBase):
 
 
 if __name__ == "__main__":
-    DestroyCluster().run()
+    DestroyCluster().start()

@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import time
+from statistics import mean
 
 import paramiko
 
@@ -20,12 +21,12 @@ class Env:
     def time(self):
         return time.time() - self.started
 
-    def last_metrics(self):
+    def last_metrics(self, group):
         cur = self.con.cursor()
         metrics = []
         for i in range(self.instances):
             metrics.append({})
-            instance = '{}.target'.format(i)
+            instance = '{}.{}'.format(i, group)
             for metric in METRICS:
                 cur.execute(GET_LAST_METRIC, [instance, metric])
                 value = cur.fetchone()
@@ -48,3 +49,18 @@ class Env:
         client.close()
 
         self.instances = n
+
+
+class MovingAverage:
+    def __init__(self, window_size=10):
+        self._vals = []
+        self._window_size = window_size
+
+    def get(self):
+        if len(self._vals) >= self._window_size:
+            return mean(self._vals)
+
+    def put(self, v):
+        self._vals.append(v)
+        if len(self._vals) > 10:
+            del self._vals[0]

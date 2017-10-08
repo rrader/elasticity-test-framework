@@ -45,4 +45,4 @@ class RedisBenchmark(BaseExperiment):
 
 
 if __name__ == "__main__":
-    RedisBenchmark().run()
+    RedisBenchmark().start()

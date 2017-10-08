@@ -1,0 +1,2 @@
+/var/log/scaling_controller.log:scaling_controller.log
+/var/log/metrics_collector.log:metrics_collector.log

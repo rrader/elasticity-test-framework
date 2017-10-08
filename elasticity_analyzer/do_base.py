@@ -1,5 +1,6 @@
 import json
 import os
+import tarfile
 from contextlib import contextmanager, ExitStack
 from io import StringIO
 
@@ -35,8 +36,10 @@ def wait_until_done(droplets):
             if action.status != 'completed':
                 action.wait()
                 n += 1
+    print(n, 'operations pending')
     if n:
         time.sleep(30)
+    print('continue')
 
 
 class DOBase(Base):
@@ -46,6 +49,13 @@ class DOBase(Base):
         self.manager = digitalocean.Manager(token=self.token)
         self.tag = 'PhD'
         self._base_output_dir = self.get_base_output_dir()
+        self._ssh_connections = {}
+
+    def start(self):
+        try:
+            self.run()
+        finally:
+            self.close_ssh()
 
     def run(self):
         pass
@@ -94,8 +104,6 @@ class DOBase(Base):
         droplets = self.manager.get_all_droplets(tag_name=self.tag)
         if tag:
             droplets = sorted([d for d in droplets if tag in d.tags], key=lambda d: d.name)
-        for droplet in droplets:
-            print('use droplet {} {}'.format(droplet.name, droplet.ip_address))
         return droplets
 
     def destroy_all(self):
@@ -104,30 +112,34 @@ class DOBase(Base):
             print('destroying droplet {}'.format(droplet.name))
             droplet.destroy()
 
-    @contextmanager
     def ssh(self, **kwargs):
-        pkey = paramiko.RSAKey.from_private_key(StringIO(self.config['ssh']['private']))
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(**kwargs, pkey=pkey)
-        try:
-            yield ssh
-        finally:
-            ssh.close()
-        return ssh
+        cache_key = tuple(sorted(kwargs.items()))
+        if self._ssh_connections.get(cache_key):
+            return self._ssh_connections[cache_key]
+        else:
+            pkey = paramiko.RSAKey.from_private_key(StringIO(self.config['ssh']['private']))
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(**kwargs, pkey=pkey)
+            self._ssh_connections[cache_key] = ssh
+            print('connected to {}'.format(kwargs))
+            return ssh
 
     def ssh_droplet(self, droplet):
-        return self.ssh(hostname=droplet.ip_address, username='root', compress=True)
+        ip_addr = droplet.ip_address
+        print('use droplet {} {}'.format(droplet.name, ip_addr))
+        return self.ssh(hostname=ip_addr, username='root', compress=True)
 
-    @contextmanager
     def ssh_droplet_group(self, group):
-        with ExitStack() as stack:
-            sshs = []
-            for droplet in self.get_droplet_group(group):
-                sshs.append(
-                    stack.enter_context(self.ssh_droplet(droplet))
-                )
-            yield sshs
+        sshs = []
+        for droplet in self.get_droplet_group(group):
+            sshs.append(self.ssh_droplet(droplet))
+        return sshs
+
+    def close_ssh(self):
+        for key, connection in self._ssh_connections.items():
+            connection.close()
+        print('connections closed')
 
     def do_ssh_key(self):
         all_key = self.manager.get_all_sshkeys()
@@ -162,9 +174,13 @@ class LayoutedBase(DOBase):
     DEFAULT_ASSETS = []
 
     def run(self):
-        groups = self.LAYOUT.get('groups', {})
+        self.build_cluster()
 
+    def build_cluster(self):
+        groups = self.LAYOUT.get('groups', {})
         print('=> Create layout')
+
+        print('  create droplets')
         droplets = []
         for name, config in groups.items():
             group_droplets = self.get_or_create_droplet_group(
@@ -172,35 +188,37 @@ class LayoutedBase(DOBase):
             )
             droplets.extend(group_droplets)
             self.LAYOUT['groups'][name]['ips'] = [droplet.ip_address for droplet in group_droplets]
-
         wait_until_done(droplets)
 
+        print('  collect IP addresses')
         for name, config in groups.items():
             droplets = self.get_droplet_group(name)
             self.LAYOUT['groups'][name]['ips'] = {droplet.name: droplet.ip_address for droplet in droplets}
+            self.LAYOUT['groups'][name]['assets'] = list(self.DEFAULT_ASSETS + config.get('assets', []))
 
-        print('=> Populate assets')
-        for name, config in groups.items():
-            droplets = self.get_droplet_group(name)
+        print('  set hostnames')
+        for droplet, ssh, group, config in self.iterate_ssh():
+            ssh.exec_command('echo "{}" > /etc/hostname'.format(droplet.name))
+            ssh.exec_command('hostname {}'.format(droplet.name))
 
-            for droplet in droplets:
-                with self.ssh_droplet(droplet) as ssh:
-                    ssh.exec_command('echo "{}" > /etc/hostname'.format(droplet.name))
-                    ssh.exec_command('hostname {}'.format(droplet.name))
-                    sftp = ssh.open_sftp()
-
-                    assets = self.DEFAULT_ASSETS + config.get('assets', [])
-                    self.LAYOUT['groups'][name]['assets'] = list(assets)
-                    for asset in assets:
-                        remote_path = f'/opt/test/assets/{asset}'
-                        print(f'Putting asset {asset} to {remote_path}')
-                        put(sftp, f'assets/{asset}', remote_path)
+        self.populate_assets()
 
         layout_txt = json.dumps(self.LAYOUT)
         self.cmd_for_all(f'cat > /opt/layout.json << EOF\n{layout_txt}\nEOF')
-
-        self.asset_script_for_all('setup.sh')
         print('=> Layout created')
+
+    def populate_assets(self):
+        print('=> Populate assets')
+
+        if os.path.exists('assets.tgz'):
+            os.remove('assets.tgz')
+        with tarfile.open('assets.tgz', "w:gz") as tar:
+            tar.add('assets')
+
+        for droplet, ssh, group, config in self.iterate_ssh():
+            sftp = ssh.open_sftp()
+            put(sftp, 'assets.tgz', '/opt/test/assets.tgz')
+            ssh.exec_command('cd /opt/test/; rm -rf assets; tar xf assets.tgz; cd -')
 
     def asset_script(self, ssh, asset, script):
         remote_path = f'/opt/test/assets/{asset}'
@@ -212,25 +230,15 @@ class LayoutedBase(DOBase):
 
     def asset_script_for_all(self, script):
         print(f'Asset script: {script}')
-        groups = self.LAYOUT.get('groups', {})
-        for name, config in groups.items():
-            droplets = self.get_droplet_group(name)
-
-            for droplet in droplets:
-                with self.ssh_droplet(droplet) as ssh:
-                    for asset in config.get('assets', []):
-                        self.asset_script(ssh, asset, script)
+        for droplet, ssh, group, config in self.iterate_ssh():
+            for asset in config.get('assets', []):
+                self.asset_script(ssh, asset, script)
 
     def cmd_for_all(self, cmd):
         print(f'Command: {cmd}')
-        groups = self.LAYOUT.get('groups', {})
-        for name, config in groups.items():
-            droplets = self.get_droplet_group(name)
-
-            for droplet in droplets:
-                with self.ssh_droplet(droplet) as ssh:
-                    stdin, stdout, stderr = ssh.exec_command(cmd)
-                    print(stdout.read().decode(), stderr.read().decode())
+        for droplet, ssh, group, config in self.iterate_ssh():
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            print(stdout.read().decode(), stderr.read().decode())
 
     def droplets_with_asset(self, asset):
         groups = self.LAYOUT.get('groups', {})
@@ -240,9 +248,18 @@ class LayoutedBase(DOBase):
             if asset in config.get('assets', []):
                 yield from droplets
 
-    def setup(self):
-        pass
+    def iterate_ssh(self, group=None):
+        groups = self.LAYOUT.get('groups', {})
+        for name, config in groups.items():
+            if group is not None and name != group:
+                continue
+
+            droplets = self.get_droplet_group(name)
+
+            for droplet in droplets:
+                ssh = self.ssh_droplet(droplet)
+                yield droplet, ssh, name, config
 
 
 if __name__ == "__main__":
-    DOBase().run()
+    DOBase().start()

@@ -1,5 +1,3 @@
-import time
-
 import sys
 
 from scaling_controller.algs.constant import constant
@@ -16,10 +14,9 @@ def main():
     env = Env()
 
     env.set_instance_number(1)
-    while True:
-        ALGORITHM(env)
+    for alg_out in ALGORITHM(env):
+        print(alg_out)
         sys.stdout.flush()
-        time.sleep(1)
 
 
 if __name__ == '__main__':

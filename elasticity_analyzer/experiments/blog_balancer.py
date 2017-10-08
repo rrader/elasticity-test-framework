@@ -53,34 +53,34 @@ class BlogBalancer(BaseExperiment):
 
         timeout = self.TIMEOUT
 
-        with self.ssh_droplet_group('Source') as sshs:
-            max_rate = self.MAX_RATE
-            rate = self.START_RATE
-            dur = self.STEP_DURATION
-            port = self.PORT
+        sshs = self.ssh_droplet_group('Source')
+        max_rate = self.MAX_RATE
+        rate = self.START_RATE
+        dur = self.STEP_DURATION
+        port = self.PORT
 
-            while rate < max_rate:
-                conns = rate * dur
-                cmd = (
-                    f'httperf --hog --server=0.loadbalancer --port {port} --num-conns {conns} --rate={rate} '
-                    f'--timeout={timeout} > /tmp/httperf-{rate}.log'
-                )
-                self.httperf_files.append((f'/tmp/httperf-{rate}.log', f'httperf-{rate}.log'))
-                print(cmd)
+        while rate < max_rate:
+            conns = rate * dur
+            cmd = (
+                f'httperf --hog --server=0.loadbalancer --port {port} --num-conns {conns} --rate={rate} '
+                f'--timeout={timeout} > /tmp/httperf-{rate}.log'
+            )
+            self.httperf_files.append((f'/tmp/httperf-{rate}.log', f'httperf-{rate}.log'))
+            print(cmd)
 
-                chans = [
-                    ssh.get_transport().open_session()
-                    for ssh in sshs
-                ]
-                for chan in chans:
-                    chan.exec_command(cmd)
+            chans = [
+                ssh.get_transport().open_session()
+                for ssh in sshs
+            ]
+            for chan in chans:
+                chan.exec_command(cmd)
 
-                print(f'Waiting until test on rate {rate} ends...')
-                while not all(chan.exit_status_ready() for chan in chans):
-                    sleep(1)
+            print(f'Waiting until test on rate {rate} ends...')
+            while not all(chan.exit_status_ready() for chan in chans):
+                sleep(1)
 
-                rate = int(rate + self.STEP_RATE)
-                sleep(5)
+            rate = int(rate + self.STEP_RATE)
+            sleep(5)
         sleep(30)
 
     def before_experiment(self):
@@ -117,4 +117,4 @@ class BlogBalancer(BaseExperiment):
 
 
 if __name__ == "__main__":
-    BlogBalancer().run()
+    BlogBalancer().start()

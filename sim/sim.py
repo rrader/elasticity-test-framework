@@ -6,21 +6,11 @@ from matplotlib import pyplot as plt
 import networkx as nx
 from nxsim import BaseNetworkAgent, NetworkSimulation, BaseLoggingAgent
 
-from balancer import Balancer, period, number_of_periods
-from target import TargetNode
+from .balancer import Balancer, period, number_of_periods
+from .target import TargetNode
 
 number_of_nodes = 3
 G = nx.star_graph(number_of_nodes)
-
-
-# # Just like subclassing a process in SimPy
-# class MyAgent(BaseNetworkAgent):
-#     def __init__(self, environment=None, agent_id=0, state=()):  # Make sure to have these three keyword arguments
-#         super().__init__(environment=environment, agent_id=agent_id, state=state)
-#         # Add your own attributes here
-#
-#     def run(self):
-#         # Add your behaviors here
 
 
 class AutoScalingAgent(BaseNetworkAgent):
@@ -69,8 +59,6 @@ sim.run_simulation()
 
 trial = BaseLoggingAgent.open_trial_state_history(dir_path='sim_01', trial_id=0)
 
-# zombie_census = [sum([1 for node_id, state in g.items() if state['id'] == 'node']) for t, g in trial.items()]
-# print(trial)
 # req_num = [sum([state['req_new'] for node_id, state in g.items() if state['id'] == 'balancer']) for t, g in trial.items()  if t > (period * (number_of_periods - 1))]
 # plt.plot(req_num)
 # plt.show()

@@ -4,7 +4,7 @@ from random import random
 import numpy as np
 from simple_rl.agents import QLearningAgent
 
-from scaling import ScalingPolicy
+from .scaling import ScalingPolicy
 
 pressure_cpu_threshold = 0.1
 
@@ -55,8 +55,8 @@ class QScalingPolicy(ScalingPolicy):
 
     def run(self):
         learn = True
-        from balancer import period
-        from balancer import number_of_periods
+        from .balancer import period
+        from .balancer import number_of_periods
         if self.balancer_node.env.now > (period * (number_of_periods - 2)):
             learn = False
             self.agent.epsilon = 0

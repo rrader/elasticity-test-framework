@@ -2,3 +2,5 @@ python-digitalocean
 names
 paramiko
 matplotlib
+nxsim
+simple_rl

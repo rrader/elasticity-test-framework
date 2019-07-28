@@ -1,5 +1,5 @@
-from scaling import ScalingPolicy
-from scaling_q import QScalingPolicy
+from .scaling import ScalingPolicy
+from .scaling_q import QScalingPolicy
 
 number_of_periods = 1000
 period = 40

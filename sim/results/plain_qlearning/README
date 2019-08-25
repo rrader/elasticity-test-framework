@@ -1,0 +1,45 @@
+Parameters
+====================
+
+number_of_periods = 200
+cpu_number_of_states = 9
+period = 500
+max_requests = 120
+cooldown_time = 5
+step_size = 5
+
+QLearningAgent(
+    ['NONE', 'UP', 'DOWN'], epsilon=0.3, anneal=True,
+    gamma=0.3, alpha=0.2,
+    # explore='softmax'
+)
+
+def calculate_u(max_node_num, nodes, policy):
+    cpu_avg = np.mean([node.state['cpu'] for node in nodes]) + 0.05
+    dropped = sum([node.state['dropped'] for node in nodes])
+
+    u1 = 1.0 * cpu_avg
+    u2 = 3 * (1 - (len(nodes) - 1) / float(max_node_num - 1))
+    u = (
+        (u1 + u2)
+        if dropped == 0 else
+        -dropped
+    )
+    policy.balancer_node.state['u1'] = u1
+    policy.balancer_node.state['u2'] = u2
+    policy.balancer_node.state['u3'] = 0
+    return u
+
+
+def _reward(policy, nodes, max_node_num):
+    u = calculate_u(max_node_num, nodes, policy)
+    policy.balancer_node.state['u'] = u
+    policy.balancer_node.state['reward'] = u
+    return u
+
+
+def traffic_triangular_shape(now):
+    period_t = (now + period // 2) % period
+    period_t = (period_t // step_size) * step_size
+    req_new = int(abs(float(period_t - period // 2) / (period // 2)) * max_requests)
+    return req_new

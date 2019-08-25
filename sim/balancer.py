@@ -1,14 +1,16 @@
 from .scaling_q import QScalingPolicy
 
-number_of_periods = 1000
-cpu_number_of_states = 4
-period = 100
+number_of_periods = 200
+cpu_number_of_states = 9
+period = 500
 max_requests = 120
 cooldown_time = 5
+step_size = 5
 
 
 def traffic_triangular_shape(now):
     period_t = (now + period // 2) % period
+    period_t = (period_t // step_size) * step_size
     req_new = int(abs(float(period_t - period // 2) / (period // 2)) * max_requests)
     return req_new
 

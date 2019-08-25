@@ -11,8 +11,8 @@ import seaborn as sns
 from .balancer import Balancer, period, number_of_periods, cpu_number_of_states
 from .target import TargetNode
 
-random.seed(1)
-numpy.random.seed(1)
+random.seed(2)
+numpy.random.seed(2)
 
 number_of_nodes = 3
 G = nx.star_graph(number_of_nodes)
@@ -130,25 +130,51 @@ def build_map(action):
             balancer.strategy.scaling.agent.q_func[(nodes, cpu)][action]
             for nodes in range(1, number_of_nodes + 1)
         ]
-        for cpu in range(cpu_number_of_states)
+        for cpu in range(cpu_number_of_states + 1)
     ])
 
+
+def build_policy():
+    MAP = {
+        'UP': 1.0,
+        'DOWN': -1.0,
+        'NONE': 0,
+    }
+    return np.array([
+        [
+            MAP[
+                max([(val, key) for key, val in balancer.strategy.scaling.agent.q_func[(nodes, cpu)].items()])[1]
+            ]
+            for nodes in range(1, number_of_nodes + 1)
+        ]
+        for cpu in range(cpu_number_of_states + 1)
+    ])
 
 q_up = build_map('UP')
 q_down = build_map('DOWN')
 q_none = build_map('NONE')
+vmax = numpy.max([numpy.max(q_up), numpy.max(q_down), numpy.max(q_none)])
+vmin = -10  # numpy.min([numpy.min(q_up), numpy.min(q_down), numpy.min(q_none)])
 plt.subplot(333)
 plt.title('Scale Up')
-sns.heatmap(q_up, cmap='RdBu')
+sns.heatmap(q_up, cmap='RdBu', center=0.0, vmax=vmax, vmin=vmin, annot=True)
 plt.show()
 plt.subplot(336)
 plt.title('No Action')
-sns.heatmap(q_none, cmap='RdBu')
+sns.heatmap(q_none, cmap='RdBu', center=0.0, vmax=vmax, vmin=vmin, annot=True)
 plt.show()
 plt.subplot(339)
 plt.title('Scale Down')
-sns.heatmap(q_down, cmap='RdBu')
+sns.heatmap(q_down, cmap='RdBu', center=0.0, vmax=vmax, vmin=vmin, annot=True)
+
 plt.savefig('last.png')
-plt.savefig('{}.png'.format(datetime.now().timestamp()))
-# nx.draw_networkx(G)
-# plt.show()
+plt.savefig('_{}.png'.format(datetime.now().timestamp()))
+
+plt.figure(2)
+plt.title('Policy')
+sns.heatmap(build_policy(), cmap='RdBu', center=0.0, vmax=1, vmin=-1, cbar_kws={'label': 'DOWN ... NONE ... UP'})
+plt.savefig('policy.png')
+
+plt.figure(3)
+nx.draw_networkx(G)
+plt.savefig('network.png')

@@ -1,6 +1,4 @@
 from collections import defaultdict
-from pprint import pprint
-from random import random
 
 import numpy as np
 from simple_rl.agents import QLearningAgent
@@ -10,42 +8,36 @@ from .scaling import ScalingPolicy
 pressure_cpu_threshold = 0.1
 
 
-def _reward(policy, nodes, max_node_num):
-    cpu_avg = np.mean([node.state['cpu'] for node in nodes])
+def calculate_u(max_node_num, nodes, policy):
+    cpu_avg = np.mean([node.state['cpu'] for node in nodes]) + 0.05
     dropped = sum([node.state['dropped'] for node in nodes])
 
-    u1 = 2 * (cpu_avg - 0.5)
-    u2 = 1 * (1 - len(nodes) / float(max_node_num))
-    u3 = 0 if dropped == 0 else -10
+    u1 = 1.0 * cpu_avg
+    u2 = 3 * (1 - (len(nodes) - 1) / float(max_node_num - 1))
     u = (
-        u1 + u2 + u3
+        (u1 + u2)
+        if dropped == 0 else
+        -dropped
     )
-    policy.balancer_node.state['u'] = u
     policy.balancer_node.state['u1'] = u1
     policy.balancer_node.state['u2'] = u2
-    policy.balancer_node.state['u3'] = u3
+    policy.balancer_node.state['u3'] = 0
+    return u
+
+
+def _reward(policy, nodes, max_node_num):
+    u = calculate_u(max_node_num, nodes, policy)
+    policy.balancer_node.state['u'] = u
     policy.balancer_node.state['reward'] = u
     return u
 
 
 def _reward_diff(policy, nodes, max_node_num):
     prev_u = policy.data.get('prev_u', 0.0)
-    cpu_avg = np.mean([node.state['cpu'] for node in nodes])
-    dropped = sum([node.state['dropped'] for node in nodes])
-    # pressure = -10 * (1 - cpu_avg) if cpu_avg > pressure_cpu_threshold else 10.
-
-    u1 = 1.0 * cpu_avg
-    u2 = 1 * (1 - len(nodes) / float(max_node_num))
-    u3 = 0 if dropped == 0 else -10
-    u = (
-        u1 + u2 + u3
-    )
-    policy.balancer_node.state['u1'] = u1
-    policy.balancer_node.state['u2'] = u2
-    policy.balancer_node.state['u3'] = u3
+    u = calculate_u(max_node_num, nodes, policy)
 
     reward = (u - prev_u) + (0.5 if u >= 0 else -0.5)
-    policy.data['prev_u'] = prev_u
+    policy.data['prev_u'] = u
     policy.balancer_node.state['u'] = u
     policy.balancer_node.state['reward'] = reward
 
@@ -59,11 +51,11 @@ class QScalingPolicy(ScalingPolicy):
         super().__init__(balancer_node)
         self.data = {}
         self.agent = QLearningAgent(
-            ['NONE', 'UP', 'DOWN'], epsilon=0.2, anneal=True,
-            gamma=0.99, alpha=0.1,
+            ['NONE', 'UP', 'DOWN'], epsilon=0.3, anneal=True,
+            gamma=0.3, alpha=0.2,
             # explore='softmax'
         )
-        self.agent.q_func = defaultdict(lambda : defaultdict(lambda: 0))
+        self.agent.q_func = defaultdict(lambda : defaultdict(lambda: np.random.random()))
         self.max_node_num = len(self.balancer_node.get_nodes())
         self._impossible = False
 
@@ -90,10 +82,12 @@ class QScalingPolicy(ScalingPolicy):
 
         state = (len(nodes), cpu_state)
 
-        action = self.agent.act(state, reward, learning=learn)
+        # DOCUMENT this cooldown behavior!
         if cooldown:
+            self.agent.update(self.agent.prev_state, self.agent.prev_action, reward, state)
             action = 'NONE'
-            self.agent.prev_action = 'NONE'
+        else:
+            action = self.agent.act(state, reward, learning=learn)
 
         scaled = False
         if action == 'UP':

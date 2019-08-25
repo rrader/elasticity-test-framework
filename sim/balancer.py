@@ -1,10 +1,10 @@
-from .scaling import ScalingPolicy
 from .scaling_q import QScalingPolicy
 
 number_of_periods = 1000
-period = 40
-max_requests = 50
-cooldown_time = 2
+cpu_number_of_states = 4
+period = 100
+max_requests = 120
+cooldown_time = 5
 
 
 def traffic_triangular_shape(now):
@@ -20,14 +20,14 @@ class Balancer:
         self.balancer_node = balancer_node
         self.cooldown = 0
         self._prev_period_id = None
+        self.scaling = self.policy(balancer_node)
 
     def generate_traffic(self):
         balancer = self.balancer_node
-        scaling = self.policy(balancer)
         while True:
             balancer.state['period_id'] = balancer.env.now // period
             if self._prev_period_id is not None and self._prev_period_id != balancer.state['period_id']:
-                scaling.end_of_period()
+                self.scaling.end_of_period()
             self._prev_period_id = balancer.state['period_id']
 
             req_new = traffic_triangular_shape(balancer.env.now)
@@ -37,9 +37,11 @@ class Balancer:
                 self.cooldown -= 1
 
             if self.cooldown == 0:
-                if scaling.run():
+                if self.scaling.run(cooldown=False):
                     self.cooldown = cooldown_time
-            yield balancer.env.timeout(0.5)
+            else:
+                self.scaling.run(cooldown=True)
+            yield balancer.env.timeout(1.0)
 
     def _route_request(self, req_new):
         active_nodes = self.balancer_node.get_active_nodes()

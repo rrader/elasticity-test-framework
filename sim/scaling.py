@@ -5,13 +5,16 @@ class ScalingPolicy:
     def __init__(self, balancer_node):
         self.balancer_node = balancer_node
 
-    def run(self):
+    def run(self, cooldown):
+        if cooldown:
+            return 0
         nodes = self.balancer_node.get_active_nodes()
         cpu_avg = np.mean([node.state['cpu'] for node in nodes])
         if cpu_avg > 0.8:
             self._scale_up()
         if cpu_avg < 0.4:
             self._scale_down()
+        return 0
 
     def _scale_up(self):
         nodes = self.balancer_node.get_neighboring_agents(state_id='node')

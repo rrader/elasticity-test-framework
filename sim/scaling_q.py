@@ -49,13 +49,15 @@ class QScalingPolicy(ScalingPolicy):
 
     def __init__(self, balancer_node):
         super().__init__(balancer_node)
+
         self.data = {}
         self.agent = QLearningAgent(
             ['NONE', 'UP', 'DOWN'], epsilon=0.3, anneal=True,
             gamma=0.3, alpha=0.2,
             # explore='softmax'
         )
-        self.agent.q_func = defaultdict(lambda : defaultdict(lambda: np.random.random()))
+        self._set_q()
+
         self.max_node_num = len(self.balancer_node.get_nodes())
         self._impossible = False
 
@@ -104,3 +106,84 @@ class QScalingPolicy(ScalingPolicy):
 
     def end_of_period(self):
         self.agent.end_of_episode()
+
+    def _set_q(self):
+        self.agent.q_func = defaultdict(lambda : defaultdict(lambda: 0))
+
+
+class QScalingPolicyRandomQ(QScalingPolicy):
+    def _set_q(self):
+        self.agent.q_func = defaultdict(lambda : defaultdict(lambda: np.random.random()))
+
+
+class QScalingPolicyPriorKnowledge(QScalingPolicy):
+    def _set_q(self):
+        self.agent.q_func = defaultdict(lambda: defaultdict(lambda: 0.0))
+        # prior knowledge
+        nodes_max = len(self.balancer_node.get_nodes()) + 1
+        from .balancer import cpu_number_of_states
+        for cpu in range(cpu_number_of_states + 1):
+            for nodes in range(1, nodes_max):
+                up = 0
+                down = 0
+                none = 0.5
+
+                if cpu == 0:
+                    down = 1
+                if cpu == cpu_number_of_states:
+                    up = 1
+                if nodes == nodes_max:
+                    up = -1
+                if nodes == 1:
+                    down = -1
+
+                self.agent.q_func[(nodes, cpu)] = {
+                    'UP': up,
+                    'DOWN': down,
+                    'NONE': none,
+                    None: 0,
+                }
+
+
+class QScalingPolicyPriorKnowledgePotential(QScalingPolicy):
+    def _set_q(self):
+        self.agent.q_func = defaultdict(lambda: defaultdict(lambda: 0.0))
+        # prior knowledge
+        nodes_max = len(self.balancer_node.get_nodes()) + 1
+        from .balancer import cpu_number_of_states
+        for cpu in range(cpu_number_of_states + 1):
+            for nodes in range(1, nodes_max):
+                up = 0
+                down = 0
+                none = 0.5
+
+                if cpu == 0:
+                    down = 1
+                if cpu == cpu_number_of_states:
+                    up = 1
+                if nodes == nodes_max:
+                    up = -1
+                if nodes == 1:
+                    down = -1
+
+                self.agent.q_func[(nodes, cpu)] = {
+                    'UP': up,
+                    'DOWN': down,
+                    'NONE': none,
+                    None: 0,
+                }
+
+        for action in ['UP', 'DOWN', 'NONE']:
+            for nodes in range(1, nodes_max):
+                row = [
+                    self.agent.q_func[(nodes, cpu)][action]
+                    for cpu in range(cpu_number_of_states + 1)
+                ]
+                row_new = [
+                    sum(
+                        val / (1 + abs(i - j) ** 2)
+                        for j, val in enumerate(row)
+                    ) for i in range(len(row))
+                ]
+                for cpu, val in enumerate(row_new):
+                    self.agent.q_func[(nodes, cpu)][action] = val

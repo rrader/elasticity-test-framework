@@ -1,6 +1,6 @@
-from .scaling_q import QScalingPolicy
+from .scaling_q import QScalingPolicy, QScalingPolicyPriorKnowledge, QScalingPolicyPriorKnowledgePotential
 
-number_of_periods = 200
+number_of_periods = 10
 cpu_number_of_states = 9
 period = 500
 max_requests = 120
@@ -16,7 +16,7 @@ def traffic_triangular_shape(now):
 
 
 class Balancer:
-    policy = QScalingPolicy
+    policy = QScalingPolicyPriorKnowledgePotential
 
     def __init__(self, balancer_node):
         self.balancer_node = balancer_node

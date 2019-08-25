@@ -139,6 +139,7 @@ def build_policy():
         'UP': 1.0,
         'DOWN': -1.0,
         'NONE': 0,
+        None: 0,
     }
     return np.array([
         [

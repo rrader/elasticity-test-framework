@@ -1,7 +1,7 @@
 Parameters
 ====================
 
-number_of_periods = 200
+number_of_periods = 10
 cpu_number_of_states = 9
 period = 500
 max_requests = 120
@@ -14,7 +14,7 @@ QLearningAgent(
     # explore='softmax'
 )
 
-QScalingPolicyRandomQ
+QScalingPolicyPriorKnowledgePotential
 
 def calculate_u(max_node_num, nodes, policy):
     cpu_avg = np.mean([node.state['cpu'] for node in nodes]) + 0.05
